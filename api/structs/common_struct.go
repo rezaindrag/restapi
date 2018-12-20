@@ -1,4 +1,4 @@
-cleapackage structs
+package structs
 
 // ErrorMsg struct
 type ErrorMsg struct {
