@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -23,13 +22,17 @@ func GetNews(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query("select * from news")
 	if err != nil {
-		log.Fatal(err)
+		msg := structs.ErrorMsg{Message: err.Error()}
+		helper.JSON(w, msg, http.StatusInternalServerError)
+		return
 	}
 	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&n.ID, &n.Title, &n.Description, &n.Thumbnail, &n.Author, &n.PublishDate)
 		if err != nil {
-			log.Fatal(err)
+			msg := structs.ErrorMsg{Message: err.Error()}
+			helper.JSON(w, msg, http.StatusInternalServerError)
+			return
 		}
 		news = append(news, n)
 	}
@@ -50,10 +53,38 @@ func GetSingleNews(w http.ResponseWriter, r *http.Request) {
 
 	row := db.QueryRow("select * from news where id = $1", id)
 	if err := row.Scan(&n.ID, &n.Title, &n.Description, &n.Thumbnail, &n.Author, &n.PublishDate); err != nil {
-		errorMessege := structs.ErrorMsg{Message: "Data not found"}
-		helper.JSON(w, errorMessege)
+		msg := map[string]string{"message": "Data not found"}
+		helper.JSON(w, msg, http.StatusNotFound)
 		return
 	}
 
 	json.NewEncoder(w).Encode(n)
+}
+
+// StoreNews stores new news
+func StoreNews(w http.ResponseWriter, r *http.Request) {
+	var n structs.News
+
+	// copying json to n
+	err := json.NewDecoder(r.Body).Decode(&n)
+	if err != nil {
+		msg := structs.ErrorMsg{Message: err.Error()}
+		helper.JSON(w, msg, http.StatusInternalServerError)
+		return
+	}
+
+	db := config.Database()
+	defer db.Close()
+
+	// error is returned by scan, when QueryRow doesn't returned *Row
+	query := "insert into news(title, description, thumbnail, author) values($1, $2, $3, $4) returning id, publish_date"
+	err = db.QueryRow(query,
+		n.Title, n.Description, n.Thumbnail, n.Author).Scan(&n.ID, &n.PublishDate)
+	if err != nil {
+		msg := map[string]string{"message": err.Error()}
+		helper.JSON(w, msg, http.StatusInternalServerError)
+		return
+	}
+
+	helper.JSON(w, n, http.StatusOK)
 }

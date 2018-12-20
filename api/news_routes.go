@@ -9,4 +9,5 @@ import (
 func NewsRoutes(s *mux.Router) {
 	s.HandleFunc("", handlers.GetNews).Methods("GET")
 	s.HandleFunc("/{id}", handlers.GetSingleNews).Methods("GET")
+	s.HandleFunc("", handlers.StoreNews).Methods("POST")
 }
