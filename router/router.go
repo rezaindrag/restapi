@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/rezaindrag/restapi/api/handlers"
+	"github.com/rezaindrag/restapi/api"
 	"github.com/rezaindrag/restapi/api/middlewares"
 )
 
@@ -10,12 +10,14 @@ import (
 func New() *mux.Router {
 	r := mux.NewRouter()
 
+	// group routes
+	newsRoutes := r.PathPrefix("/news").Subrouter()
+
 	// middlewares
-	r.Use(middlewares.CommonMiddleware)
+	middlewares.SetCommonMiddleware(r)
 
 	// routers
-	r.HandleFunc("/news", handlers.GetNews).Methods("GET")
-	r.HandleFunc("/news/{id}", handlers.GetSingleNews).Methods("GET")
+	api.NewsRoutes(newsRoutes)
 
 	return r
 }
