@@ -88,3 +88,59 @@ func StoreNews(w http.ResponseWriter, r *http.Request) {
 
 	helper.JSON(w, n, http.StatusOK)
 }
+
+// UpdateNews updates news by id
+func UpdateNews(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	id := params["id"]
+
+	var n structs.News
+
+	// copying json to n
+	err := json.NewDecoder(r.Body).Decode(&n)
+	if err != nil {
+		msg := structs.ErrorMsg{Message: err.Error()}
+		helper.JSON(w, msg, http.StatusInternalServerError)
+		return
+	}
+
+	// db connection
+	db := config.Database()
+	defer db.Close()
+
+	// query update
+	query := `
+		update news set title = $1, description = $2, thumbnail = $3, author = $4 where id = $5 
+		returning *
+	`
+	err = db.QueryRow(query, n.Title, n.Description, n.Thumbnail, n.Author, id).Scan(
+		&n.ID, &n.Title, &n.Description, &n.Thumbnail, &n.Author, &n.PublishDate,
+	)
+	if err != nil {
+		helper.JSON(w, map[string]string{"message": err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	helper.JSON(w, n, http.StatusOK)
+}
+
+// DeleteNews delete single record of news
+func DeleteNews(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["id"]
+
+	db := config.Database()
+	defer db.Close()
+
+	var n structs.News
+
+	query := `delete from news where id = $1 returning *`
+	err := db.QueryRow(query, id).Scan(&n.ID, &n.Title, &n.Description, &n.Thumbnail, &n.Author, &n.PublishDate)
+	if err != nil {
+		helper.JSON(w, map[string]string{"message": err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	helper.JSON(w, n, http.StatusOK)
+}
