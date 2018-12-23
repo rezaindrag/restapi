@@ -2,20 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
-	validator "gopkg.in/go-playground/validator.v9"
 
 	"github.com/rezaindrag/restapi/api/structs"
 	"github.com/rezaindrag/restapi/config"
 	"github.com/rezaindrag/restapi/helper"
 )
-
-// init validator
-var validate *validator.Validate
 
 // GetNews returns list of news
 func GetNews(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +75,7 @@ func StoreNews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validation
-	varMsg, err := customValidation(w, n)
+	varMsg, err := helper.CustomValidation(w, n)
 	if err != nil {
 		msg := map[string][]string{"error_validations": varMsg}
 		helper.JSON(w, msg, http.StatusInternalServerError)
@@ -125,6 +120,14 @@ func UpdateNews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// validation
+	varMsg, err := helper.CustomValidation(w, n)
+	if err != nil {
+		msg := map[string][]string{"error_validations": varMsg}
+		helper.JSON(w, msg, http.StatusInternalServerError)
+		return
+	}
+
 	// db connection
 	db := config.Database()
 	defer db.Close()
@@ -163,52 +166,4 @@ func DeleteNews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helper.JSON(w, n, http.StatusOK)
-}
-
-// customValidation customs error validation
-func customValidation(w http.ResponseWriter, n structs.News) ([]string, error) {
-	var valMsg []string
-	validate = validator.New()
-	err := validate.Struct(n)
-	if err != nil {
-		// fetch errors
-		for _, err := range err.(validator.ValidationErrors) {
-			// dumpFieldError(err)
-			// custom validation message
-			var customMsg string
-			switch err.Tag() {
-			case "required":
-				customMsg = err.Field() + " is " + err.Tag()
-				break
-			case "min":
-				customMsg = err.Field() + " cannot be entered less than " + err.Param() + " characters"
-				break
-			case "max":
-				customMsg = err.Field() + " cannot be entered more than " + err.Param() + " characters"
-				break
-			case "url":
-				customMsg = err.Field() + " must be a valid " + err.Tag()
-			}
-			valMsg = append(valMsg, customMsg)
-		}
-
-		return valMsg, err
-	}
-
-	return valMsg, nil
-}
-
-// dumpFieldError dumps error validator fields
-func dumpFieldError(err validator.FieldError) {
-	fmt.Println("Namespace:", err.Namespace())
-	fmt.Println("Field:", err.Field())
-	fmt.Println("StructNamespace:", err.StructNamespace()) // can differ when a custom TagNameFunc is registered or
-	fmt.Println("StructField:", err.StructField())         // by passing alt name to ReportError like below
-	fmt.Println("Tag:", err.Tag())
-	fmt.Println("ActualTag:", err.ActualTag())
-	fmt.Println("Kind:", err.Kind())
-	fmt.Println("Type:", err.Type())
-	fmt.Println("Value:", err.Value())
-	fmt.Println("Param:", err.Param())
-	fmt.Println()
 }
